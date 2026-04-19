@@ -2,7 +2,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS issues (
@@ -77,7 +77,8 @@ CREATE TABLE IF NOT EXISTS code_fix_meta (
     model TEXT NOT NULL,
     created_at TEXT NOT NULL,
     pr_url TEXT,
-    pr_number INTEGER
+    pr_number INTEGER,
+    skip_reason TEXT
 );
 CREATE TABLE IF NOT EXISTS qa_reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,6 +122,11 @@ CREATE INDEX IF NOT EXISTS idx_qa_reviews_issue ON qa_reviews(issue_id);
 
 def _migrate(conn: sqlite3.Connection) -> None:
     current = conn.execute("PRAGMA user_version").fetchone()[0]
+    if current < 2:
+        try:
+            conn.execute("ALTER TABLE code_fix_meta ADD COLUMN skip_reason TEXT")
+        except sqlite3.OperationalError:
+            pass
     if current < SCHEMA_VERSION:
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 

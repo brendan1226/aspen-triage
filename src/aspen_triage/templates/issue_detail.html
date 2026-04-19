@@ -123,8 +123,13 @@
     <span class="muted">{{ fix_meta.model }} · {{ fix_meta.created_at[:10] }}</span>
   </div>
   <div class="no-fix-notice">
-    <strong>Claude returned no code fixes for this issue.</strong>
-    <p>{{ fix_meta.commit_message }}</p>
+    <strong>Claude could not generate a code fix for this issue.</strong>
+    {% if fix_meta.skip_reason %}
+    <p><strong>Why:</strong> {{ fix_meta.skip_reason }}</p>
+    {% endif %}
+    {% if fix_meta.commit_message %}
+    <p><strong>Intent:</strong> <code>{{ fix_meta.commit_message }}</code></p>
+    {% endif %}
     <form action="/issues/{{ issue.id }}/generate-fix" method="post" class="inline-form">
       <button type="submit" class="btn-secondary">↻ Try again</button>
     </form>

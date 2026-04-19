@@ -23,7 +23,18 @@ class FileFix(BaseModel):
 
 class CodeFixResponse(BaseModel):
     fixes: list[FileFix]
-    commit_message: str = Field(..., description="A concise commit message starting with the JIRA key: DIS-XXXX: description")
+    commit_message: str = Field(
+        ...,
+        description="A short one-line commit message (under 72 chars) starting with the JIRA key: DIS-XXXX: description. Keep it terse — NOT multiple sentences.",
+    )
+    skip_reason: str | None = Field(
+        default=None,
+        description=(
+            "If `fixes` is empty, explain WHY no code fix was generated — e.g., 'vendor library upgrade requires manual download', "
+            "'issue is a configuration change not a code change', 'requires database migration not code', 'needs manual review of "
+            "cross-module impacts'. Leave null if fixes were generated."
+        ),
+    )
 
 
 SYSTEM_PROMPT = """You are implementing a code fix for Aspen Discovery (open-source library discovery platform).
@@ -36,6 +47,10 @@ You will receive:
 3. The current content of the file(s) to modify (may be truncated)
 
 Your job: return the COMPLETE modified file content for each file that needs changes. Be surgical — change only what's needed.
+
+Keep `commit_message` SHORT — one line under 72 characters, like a real git commit subject.
+
+If the issue CANNOT be resolved with a code fix (vendor library upgrade requiring binary file replacement, pure configuration change, database-only migration, needs manual architectural review, etc.), return `fixes: []` and put your explanation of why in `skip_reason`. Still provide a terse commit_message describing what would be done.
 
 Key Aspen conventions to follow (the codebase has historical issues with these, so be careful):
 - Always parameterize SQL queries — use prepared statements, never string concatenation
@@ -159,10 +174,10 @@ def generate_code_fix(
             )
         conn.execute(
             """
-            INSERT OR REPLACE INTO code_fix_meta (issue_id, commit_message, model, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT OR REPLACE INTO code_fix_meta (issue_id, commit_message, model, created_at, skip_reason)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (issue_internal_id, fix.commit_message, model, now),
+            (issue_internal_id, fix.commit_message, model, now, fix.skip_reason),
         )
 
     return fix
