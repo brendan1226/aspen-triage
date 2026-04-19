@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} — aspen-triage{% endblock %}
+
+{% block content %}
+<section>
+  <p class="breadcrumb">
+    <a href="/groups">Groups</a> › {{ group.name }}
+  </p>
+  <div class="issue-header">
+    <h2>{{ group.name }}</h2>
+    {% if group.description %}<p class="muted">{{ group.description }}</p>{% endif %}
+  </div>
+</section>
+
+<section>
+  <h3>Members ({{ members|length }})</h3>
+  {% if members %}
+  <table class="issue-table">
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Summary</th>
+        <th>Status</th>
+        <th>Type</th>
+        <th>Added</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in members %}
+      <tr>
+        <td><a href="{{ m.url }}">{{ m.jira_key }}</a></td>
+        <td><a href="/issues/{{ m.id }}">{{ m.summary }}</a></td>
+        <td><span class="tag">{{ m.status }}</span></td>
+        <td class="repo-cell">{{ m.issue_type }}</td>
+        <td class="date-cell">{{ m.added_at[:10] }}</td>
+        <td>
+          <form action="/groups/{{ group.id }}/members/{{ m.id }}/remove" method="post" class="inline-form">
+            <button type="submit" class="btn-remove" title="Remove">×</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No issues in this group yet. Browse <a href="/issues">all issues</a> and add them here.</p>
+  {% endif %}
+</section>
+{% endblock %}

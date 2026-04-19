@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Issues — aspen-triage{% endblock %}
+
+{% macro sort_link(col, label, cls="") %}
+{% set next_dir = "asc" if (sort == col and sort_dir == "desc") else "desc" %}
+{% set arrow = "" %}
+{% if sort == col %}
+  {% set arrow = " ▲" if sort_dir == "asc" else " ▼" %}
+{% endif %}
+<a class="sort-header {{ cls }}" href="/issues?issue_type={{ filter_type }}&status_category={{ filter_status }}&priority={{ filter_priority }}&q={{ filter_q }}&sort={{ col }}&dir={{ next_dir }}">{{ label }}{{ arrow }}</a>
+{% endmacro %}
+
+{% block content %}
+<section>
+  <h2>All issues ({{ total }})</h2>
+
+  <form class="filter-bar" action="/issues" method="get">
+    <select name="issue_type">
+      <option value="">All types</option>
+      {% for t in type_options %}
+      <option value="{{ t }}" {% if t == filter_type %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+    <select name="status_category">
+      <option value="" {% if filter_status == '' %}selected{% endif %}>All statuses</option>
+      <option value="open" {% if filter_status == 'open' %}selected{% endif %}>Open</option>
+      <option value="done" {% if filter_status == 'done' %}selected{% endif %}>Done</option>
+    </select>
+    <select name="priority">
+      <option value="">All priorities</option>
+      {% for p in priority_options %}
+      <option value="{{ p }}" {% if p == filter_priority %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="q" value="{{ filter_q }}" placeholder="Search summaries..." />
+    <button type="submit">Filter</button>
+  </form>
+</section>
+
+<section>
+  {% if issues %}
+  <table class="issue-table">
+    <thead>
+      <tr>
+        <th>{{ sort_link("key", "Key") }}</th>
+        <th>{{ sort_link("summary", "Summary") }}</th>
+        <th>{{ sort_link("status", "Status") }}</th>
+        <th>{{ sort_link("type", "Type") }}</th>
+        <th>{{ sort_link("priority", "Priority") }}</th>
+        <th>{{ sort_link("reporter", "Reporter") }}</th>
+        <th>{{ sort_link("updated", "Updated") }}</th>
+        <th>Group</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in issues %}
+      <tr>
+        <td><a href="{{ i.url }}">{{ i.jira_key }}</a></td>
+        <td><a href="/issues/{{ i.id }}">{{ i.summary }}</a></td>
+        <td>
+          <span class="tag status-{{ i.status_category|lower }}">{{ i.status }}</span>
+        </td>
+        <td class="repo-cell">{{ i.issue_type }}</td>
+        <td class="repo-cell">{{ i.priority }}</td>
+        <td class="repo-cell">{{ i.reporter }}</td>
+        <td class="date-cell">{{ i.updated[:10] }}</td>
+        <td>
+          {% if groups %}
+          <form action="/issues/{{ i.id }}/add-to-group" method="post" class="inline-form">
+            <select name="group_id">
+              {% for g in groups %}
+              <option value="{{ g.id }}">{{ g.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn-sm">+</button>
+          </form>
+          {% else %}
+          <a href="/groups" class="muted-link">create group</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if total_pages > 1 %}
+  <div class="pagination">
+    {% if page > 1 %}
+    <a href="/issues?issue_type={{ filter_type }}&status_category={{ filter_status }}&priority={{ filter_priority }}&q={{ filter_q }}&sort={{ sort }}&dir={{ sort_dir }}&page={{ page - 1 }}">← Prev</a>
+    {% endif %}
+    <span>Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="/issues?issue_type={{ filter_type }}&status_category={{ filter_status }}&priority={{ filter_priority }}&q={{ filter_q }}&sort={{ sort }}&dir={{ sort_dir }}&page={{ page + 1 }}">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="empty">No issues match the current filters.</p>
+  {% endif %}
+</section>
+{% endblock %}

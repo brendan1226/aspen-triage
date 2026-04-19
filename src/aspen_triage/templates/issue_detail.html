@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ issue.jira_key }} — aspen-triage{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="error-flash">{{ error }}</div>
+{% endif %}
+<section>
+  <p class="breadcrumb">
+    <a href="/issues">Issues</a> › {{ issue.jira_key }}
+  </p>
+  <div class="issue-header">
+    <h2>{{ issue.summary }}</h2>
+    <div class="issue-meta">
+      <span class="tag status-{{ issue.status_category|lower }}">{{ issue.status }}</span>
+      {% if issue.resolution %}<span class="tag">{{ issue.resolution }}</span>{% endif %}
+      <span class="tag">{{ issue.issue_type }}</span>
+      {% if issue.priority %}<span class="tag">{{ issue.priority }}</span>{% endif %}
+      {% for c in components %}<span class="tag label-tag">{{ c }}</span>{% endfor %}
+      {% for l in labels %}<span class="tag label-tag">{{ l }}</span>{% endfor %}
+      <span class="muted">by {{ issue.reporter or "unknown" }} · {{ issue.created[:10] }}</span>
+      <a href="{{ issue.url }}" class="gh-link">View on JIRA ↗</a>
+    </div>
+  </div>
+</section>
+
+<section class="issue-body">
+  <h3>Description</h3>
+  {% if issue.description %}<div class="body-text">{{ issue.description }}</div>
+  {% else %}<p class="empty">(no description)</p>{% endif %}
+</section>
+
+{% if comments %}
+<section>
+  <h3>Comments ({{ comments|length }})
+    {% if comments|length > 1 %}
+    <button class="btn-sm expand-all-btn" onclick="document.querySelectorAll('.comment-collapsible').forEach(d => d.open = true)">Expand all</button>
+    <button class="btn-sm expand-all-btn" onclick="document.querySelectorAll('.comment-collapsible').forEach(d => d.open = false)">Collapse all</button>
+    {% endif %}
+  </h3>
+  {% for c in comments %}
+  {% if loop.last %}
+  <details class="comment comment-collapsible" open>
+    <summary class="comment-header"><strong>{{ c.author or "unknown" }}</strong> <span class="muted">{{ c.created[:10] }}</span> <span class="muted comment-latest">(latest)</span></summary>
+    <div class="comment-body">{{ c.body }}</div>
+  </details>
+  {% else %}
+  <details class="comment comment-collapsible">
+    <summary class="comment-header"><strong>{{ c.author or "unknown" }}</strong> <span class="muted">{{ c.created[:10] }}</span></summary>
+    <div class="comment-body">{{ c.body }}</div>
+  </details>
+  {% endif %}
+  {% endfor %}
+</section>
+{% endif %}
+
+<section>
+  <h3>Groups</h3>
+  {% if memberships %}
+  <div class="group-chips">
+    {% for m in memberships %}
+    <span class="group-chip">
+      <a href="/groups/{{ m.id }}">{{ m.name }}</a>
+      <form action="/groups/{{ m.id }}/members/{{ issue.id }}/remove" method="post" class="inline-form">
+        <button type="submit" class="btn-remove" title="Remove from group">×</button>
+      </form>
+    </span>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Not in any group yet.</p>{% endif %}
+  {% if all_groups %}
+  <form action="/issues/{{ issue.id }}/add-to-group" method="post" class="add-to-group-form">
+    <select name="group_id">{% for g in all_groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}</select>
+    <button type="submit" class="btn-sm">Add to group</button>
+  </form>
+  {% else %}<p><a href="/groups">Create a group first</a></p>{% endif %}
+</section>
+
+{# ── AI Recommendation ── #}
+<section class="recommendation-section">
+  <h3>AI Recommendation</h3>
+  {% if rec %}
+  <div class="rec-card">
+    <div class="rec-header">
+      <span class="rec-complexity complexity-{{ rec.complexity }}">{{ rec.complexity }}</span>
+      {% if rec.needs_db_update %}<span class="tag label-tag">needs DB update</span>{% endif %}
+      <span class="muted rec-meta">{{ rec_meta.model }} · {{ rec_meta.created_at[:10] }}</span>
+    </div>
+    <div class="rec-field"><strong>Summary</strong><p>{{ rec.summary }}</p></div>
+    <div class="rec-field"><strong>Fix approach</strong><p>{{ rec.fix_approach }}</p></div>
+    <div class="rec-cols">
+      <div class="rec-field"><strong>Affected areas</strong><ul>{% for a in rec.affected_areas %}<li>{{ a }}</li>{% endfor %}</ul></div>
+      <div class="rec-field"><strong>Likely files</strong><ul>{% for f in rec.likely_files %}<li><code>{{ f }}</code></li>{% endfor %}</ul></div>
+    </div>
+    <div class="rec-field"><strong>Key guidelines</strong>
+      <div class="guideline-chips">{% for g in rec.key_guidelines %}<span class="guideline-chip">{{ g }}</span>{% endfor %}</div>
+    </div>
+    <div class="rec-field"><strong>Test plan</strong><p>{{ rec.test_plan }}</p></div>
+    <div class="rec-field"><strong>Branch name</strong> <code>{{ rec.suggested_branch_name }}</code></div>
+    <div class="rec-actions">
+      <form action="/issues/{{ issue.id }}/recommend" method="post" class="inline-form">
+        <button type="submit" class="btn-secondary">↻ Regenerate</button>
+      </form>
+    </div>
+  </div>
+  {% elif has_anthropic_key %}
+  <p class="muted">No recommendation yet.</p>
+  <form action="/issues/{{ issue.id }}/recommend" method="post">
+    <button type="submit" class="btn-primary">Generate AI recommendation</button>
+  </form>
+  {% else %}
+  <p class="muted">Set <code>ASPEN_TRIAGE_ANTHROPIC_API_KEY</code> to enable.</p>
+  {% endif %}
+</section>
+
+{# ── Code Fix ── #}
+{% if rec %}
+<section class="code-section">
+  <h3>Code Fix</h3>
+  {% if code_fixes %}
+  <div class="fix-meta">
+    <span class="muted">{{ fix_meta.model }} · {{ fix_meta.created_at[:10] }}</span>
+    {% if fix_meta.pr_url %}
+    <a href="{{ fix_meta.pr_url }}" class="pr-link">PR #{{ fix_meta.pr_number }} ↗</a>
+    {% endif %}
+  </div>
+  <p><strong>Commit message:</strong> <code>{{ fix_meta.commit_message }}</code></p>
+
+  {% for fix in code_fixes %}
+  <div class="file-fix">
+    <div class="file-fix-header">
+      <code class="file-path">{{ fix.file_path }}</code>
+      <span class="muted">{{ fix.explanation }}</span>
+    </div>
+    {% if fix.diff_lines %}
+    <div class="diff-view">
+      {% for line in fix.diff_lines %}
+      <div class="diff-line diff-{{ line.type }}">{{ line.text }}</div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">(no changes detected)</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <div class="fix-actions">
+    <form action="/issues/{{ issue.id }}/generate-fix" method="post" class="inline-form">
+      <button type="submit" class="btn-secondary">↻ Regenerate code</button>
+    </form>
+    {% if not fix_meta.pr_url and has_github_token %}
+    <form action="/issues/{{ issue.id }}/create-pr" method="post" class="inline-form"
+          onsubmit="return confirm('This will create a Draft PR on {{ github_repo }}. Continue?')">
+      <button type="submit" class="btn-primary">Create Draft PR on GitHub</button>
+    </form>
+    {% elif fix_meta.pr_url %}
+    <span class="muted">PR already created.</span>
+    {% endif %}
+  </div>
+
+  {% elif has_anthropic_key and has_github_token %}
+  <p class="muted">Generate a code fix based on the recommendation above.</p>
+  <form action="/issues/{{ issue.id }}/generate-fix" method="post">
+    <button type="submit" class="btn-primary">Generate code fix</button>
+  </form>
+  {% else %}
+  <p class="muted">Set <code>ASPEN_TRIAGE_ANTHROPIC_API_KEY</code> and configure your GitHub token in Settings to enable code generation.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

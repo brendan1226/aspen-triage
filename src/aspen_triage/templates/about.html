@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}About — aspen-triage{% endblock %}
+
+{% block content %}
+<section class="about-hero">
+  <h2>About aspen-triage</h2>
+  <p class="about-tagline">AI-powered triage for the Aspen Discovery JIRA</p>
+</section>
+
+<section class="about-section">
+  <h3>What is this?</h3>
+  <p>aspen-triage harvests issues from <a href="https://aspen-discovery.atlassian.net/browse/DIS">Aspen Discovery's JIRA</a> and makes them searchable using semantic AI. Describe a problem in plain language and find related issues — even with different terminology.</p>
+  <p>Built by <a href="https://bywatersolutions.com">ByWater Solutions</a> to help the Aspen community triage and fix issues faster.</p>
+</section>
+
+<section class="about-section">
+  <h3>Features</h3>
+  <div class="about-features">
+    <div class="about-feature">
+      <div class="about-feature-icon">S</div>
+      <div>
+        <strong>Semantic search</strong>
+        <p>Find issues by meaning, not keywords. Enter a <code>DIS-XXXX</code> key to jump straight to an issue.</p>
+      </div>
+    </div>
+    <div class="about-feature">
+      <div class="about-feature-icon">V</div>
+      <div>
+        <strong>AI verdicts</strong>
+        <p>Each search result gets a Claude-generated verdict: duplicate, already in progress, resolved, etc.</p>
+      </div>
+    </div>
+    <div class="about-feature">
+      <div class="about-feature-icon">G</div>
+      <div>
+        <strong>Issue grouping</strong>
+        <p>Manually cluster related issues into groups for coordinated triage.</p>
+      </div>
+    </div>
+    <div class="about-feature">
+      <div class="about-feature-icon">R</div>
+      <div>
+        <strong>AI recommendations</strong>
+        <p>Per-issue fix recommendations using Aspen's security + QA guidelines.</p>
+      </div>
+    </div>
+    <div class="about-feature">
+      <div class="about-feature-icon">P</div>
+      <div>
+        <strong>GitHub PR creation</strong>
+        <p>Generate code fixes and one-click create Draft PRs on Aspen-Discovery/aspen-discovery with the JIRA key in the title.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="about-section">
+  <h3>Workflow</h3>
+  <ol class="about-steps">
+    <li><strong>Find</strong> — Search or browse JIRA issues</li>
+    <li><strong>Recommend</strong> — Claude reads the issue + Aspen guidelines and produces a fix plan</li>
+    <li><strong>Generate</strong> — Claude writes the actual code fix, shown as a diff</li>
+    <li><strong>PR</strong> — One-click Draft PR on GitHub (branch name and title reference the DIS key)</li>
+    <li><strong>Review</strong> — Human review is always required before merge</li>
+  </ol>
+</section>
+
+<section class="about-section">
+  <h3>Technology</h3>
+  <p>Python, FastAPI, SQLite, fastembed (BAAI/bge-small-en-v1.5), Claude by Anthropic. Source on <a href="https://github.com/brendan1226/aspen-triage">GitHub</a>.</p>
+  <p>AI-generated PRs include a note in the body; Claude's contribution is disclosed.</p>
+</section>
+{% endblock %}

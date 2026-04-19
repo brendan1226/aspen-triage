@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Settings — aspen-triage{% endblock %}
+
+{% block content %}
+<section>
+  <h2>Your settings</h2>
+  <p class="muted">Logged in as <strong>{{ user.name or user.email }}</strong> ({{ user.email }})</p>
+</section>
+
+{% if saved %}
+<div class="success-flash">Settings saved.</div>
+{% endif %}
+
+<section>
+  <h3>GitHub integration</h3>
+  <p class="muted">Required for code generation and PR creation. The token needs <code>repo</code> scope for forking and creating PRs.</p>
+
+  <form action="/settings" method="post" class="settings-form">
+    <label>
+      <span>GitHub Personal Access Token</span>
+      <input type="password" name="github_token"
+             placeholder="ghp_... or github_pat_..."
+             value="{{ current_settings.github_token or '' }}" />
+      {% if gh_display %}<span class="muted">Current: {{ gh_display }}</span>{% endif %}
+    </label>
+    <label>
+      <span>Fork owner (your GitHub username or org)</span>
+      <input type="text" name="github_fork_owner"
+             placeholder="e.g. brendan1226 or bywatersolutions"
+             value="{{ current_settings.github_fork_owner or '' }}" />
+    </label>
+
+    <h3>JIRA integration</h3>
+    <p class="muted">Required for posting QA comments back to JIRA.</p>
+    <label>
+      <span>JIRA account email</span>
+      <input type="text" name="jira_email"
+             placeholder="you@example.com"
+             value="{{ current_settings.jira_email or '' }}" />
+    </label>
+    <label>
+      <span>JIRA API token</span>
+      <input type="password" name="jira_api_token"
+             placeholder="ATATT3x..."
+             value="{{ current_settings.jira_api_token or '' }}" />
+      {% if jira_display %}<span class="muted">Current: {{ jira_display }}</span>{% endif %}
+    </label>
+
+    <button type="submit" class="btn-primary">Save settings</button>
+  </form>
+</section>
+
+<section>
+  <h3>How to get tokens</h3>
+  <h4>GitHub</h4>
+  <ol class="help-list">
+    <li>Go to <a href="https://github.com/settings/tokens?type=beta">GitHub → Settings → Fine-grained PATs</a></li>
+    <li>Generate new token, name it <code>aspen-triage</code></li>
+    <li>Repo access: "All repositories"</li>
+    <li>Permissions: <strong>Contents: Read and write</strong>, <strong>Pull requests: Read and write</strong></li>
+  </ol>
+  <h4>JIRA</h4>
+  <ol class="help-list">
+    <li>Go to <a href="https://id.atlassian.com/manage-profile/security/api-tokens">id.atlassian.com/manage-profile/security/api-tokens</a></li>
+    <li>Create API token</li>
+    <li>Paste above, along with the email you use to sign into JIRA</li>
+  </ol>
+</section>
+{% endblock %}
