@@ -5,6 +5,9 @@
 {% if error %}
 <div class="error-flash">{{ error }}</div>
 {% endif %}
+{% if posted %}
+<div class="success-flash">Comment posted to JIRA.</div>
+{% endif %}
 <section>
   <p class="breadcrumb">
     <a href="/issues">Issues</a> › {{ issue.jira_key }}
@@ -101,6 +104,14 @@
       <form action="/issues/{{ issue.id }}/recommend" method="post" class="inline-form">
         <button type="submit" class="btn-secondary">↻ Regenerate</button>
       </form>
+      {% if has_jira_auth %}
+      <form action="/issues/{{ issue.id }}/post-to-jira" method="post" class="inline-form"
+            onsubmit="return confirm('Post this recommendation as a comment on {{ issue.jira_key }}?')">
+        <button type="submit" class="btn-secondary">Post to JIRA</button>
+      </form>
+      {% else %}
+      <span class="muted" style="font-size:0.82rem">Configure JIRA in Settings to post comments.</span>
+      {% endif %}
     </div>
   </div>
   {% elif has_anthropic_key %}
@@ -133,6 +144,12 @@
     <form action="/issues/{{ issue.id }}/generate-fix" method="post" class="inline-form">
       <button type="submit" class="btn-secondary">↻ Try again</button>
     </form>
+    {% if has_jira_auth %}
+    <form action="/issues/{{ issue.id }}/post-to-jira" method="post" class="inline-form"
+          onsubmit="return confirm('Post the recommendation and skip reason as a comment on {{ issue.jira_key }}?')">
+      <button type="submit" class="btn-primary">Post recommendation + reason to JIRA</button>
+    </form>
+    {% endif %}
   </div>
   {% elif code_fixes %}
   <div class="fix-meta">
