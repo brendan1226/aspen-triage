@@ -527,84 +527,118 @@ def generate_fix(request: Request, issue_internal_id: int) -> RedirectResponse:
     return RedirectResponse(f"/issues/{issue_internal_id}", status_code=303)
 
 
+def _build_jira_comment_text(issue_internal_id: int, request: Request) -> tuple[dict, str]:
+    """Return (issue_row, comment_text) for a JIRA post preview."""
+    with connect(settings.db_path) as conn:
+        issue = conn.execute("SELECT * FROM issues WHERE id = ?", (issue_internal_id,)).fetchone()
+        fix_meta = conn.execute("SELECT * FROM code_fix_meta WHERE issue_id = ?", (issue_internal_id,)).fetchone()
+
+    if issue is None:
+        raise ValueError("Issue not found")
+
+    from .recommend import get_stored_recommendation
+    stored = get_stored_recommendation(settings.db_path, issue_internal_id)
+    if stored is None:
+        raise ValueError("No recommendation to post. Generate one first.")
+
+    rec, rec_model, rec_created = stored
+
+    user = request.state.user
+    reviewer_name = user.get("name", "aspen-triage") if user else "aspen-triage"
+    reviewer_email = user.get("email", "aspen-triage@bywatersolutions.com") if user else "aspen-triage@bywatersolutions.com"
+
+    lines = [
+        f"Recommendation authored by {reviewer_name} <{reviewer_email}>",
+        f"Assisted-by: Claude ({rec_model}) via aspen-triage",
+        "",
+        f"Complexity: {rec.complexity}",
+        "",
+        "Summary:",
+        rec.summary,
+        "",
+        "Fix approach:",
+        rec.fix_approach,
+        "",
+    ]
+
+    if rec.affected_areas:
+        lines.append("Affected areas: " + ", ".join(rec.affected_areas))
+        lines.append("")
+    if rec.likely_files:
+        lines.append("Likely files:")
+        for f in rec.likely_files:
+            lines.append(f"  - {f}")
+        lines.append("")
+    if rec.key_guidelines:
+        lines.append("Key guidelines: " + "; ".join(rec.key_guidelines))
+        lines.append("")
+    if rec.test_plan:
+        lines.append("Test plan:")
+        lines.append(rec.test_plan)
+        lines.append("")
+
+    if fix_meta:
+        fix_meta_d = dict(fix_meta)
+        if fix_meta_d.get("skip_reason"):
+            lines.append("---")
+            lines.append("AI code generation was NOT performed. Reason:")
+            lines.append(fix_meta_d["skip_reason"])
+            lines.append("")
+        elif fix_meta_d.get("pr_url"):
+            lines.append("---")
+            lines.append(f"Draft PR: {fix_meta_d['pr_url']}")
+            lines.append("")
+
+    lines.append(f"Suggested branch: {rec.suggested_branch_name}")
+
+    return dict(issue), "\n".join(lines)
+
+
+@app.get("/issues/{issue_internal_id}/post-to-jira", response_class=HTMLResponse)
+def preview_jira_post(request: Request, issue_internal_id: int, error: str = "") -> HTMLResponse:
+    """Show an editable preview of the JIRA comment before posting."""
+    cfg = _get_user_config(request)
+    has_jira = bool(cfg["jira_email"] and cfg["jira_api_token"])
+
+    try:
+        issue, comment_text = _build_jira_comment_text(issue_internal_id, request)
+    except Exception as e:
+        return RedirectResponse(f"/issues/{issue_internal_id}?error={quote(str(e))}", status_code=303)
+
+    return templates.TemplateResponse(request=request, name="post_preview.html", context={
+        "issue": issue,
+        "comment_text": comment_text,
+        "action_url": f"/issues/{issue_internal_id}/post-to-jira",
+        "back_url": f"/issues/{issue_internal_id}",
+        "target_name": "JIRA",
+        "target_link_text": issue["jira_key"],
+        "target_link_url": issue["url"],
+        "has_auth": has_jira,
+        "error": error,
+    })
+
+
 @app.post("/issues/{issue_internal_id}/post-to-jira")
-def post_recommendation_to_jira(request: Request, issue_internal_id: int) -> RedirectResponse:
-    """Post the stored recommendation (plus skip reason if present) as a JIRA comment."""
+def post_recommendation_to_jira(request: Request, issue_internal_id: int, comment: str = Form(...)) -> RedirectResponse:
+    """Post the (possibly edited) comment to JIRA."""
     try:
         cfg = _get_user_config(request)
         if not cfg["jira_email"] or not cfg["jira_api_token"]:
             raise ValueError("No JIRA credentials configured. Add them in Settings.")
 
         with connect(settings.db_path) as conn:
-            issue = conn.execute("SELECT * FROM issues WHERE id = ?", (issue_internal_id,)).fetchone()
-            fix_meta = conn.execute("SELECT * FROM code_fix_meta WHERE issue_id = ?", (issue_internal_id,)).fetchone()
-
+            issue = conn.execute("SELECT jira_key FROM issues WHERE id = ?", (issue_internal_id,)).fetchone()
         if issue is None:
             raise ValueError("Issue not found")
 
-        from .recommend import get_stored_recommendation
-        stored = get_stored_recommendation(settings.db_path, issue_internal_id)
-        if stored is None:
-            raise ValueError("No recommendation to post. Generate one first.")
-
-        rec, rec_model, rec_created = stored
-
-        user = request.state.user
-        reviewer_name = user.get("name", "aspen-triage") if user else "aspen-triage"
-        reviewer_email = user.get("email", "aspen-triage@bywatersolutions.com") if user else "aspen-triage@bywatersolutions.com"
-
-        # Build the comment body
-        lines = [
-            f"Recommendation authored by {reviewer_name} <{reviewer_email}>",
-            f"Assisted-by: Claude ({rec_model}) via aspen-triage",
-            "",
-            f"Complexity: {rec.complexity}",
-            "",
-            "Summary:",
-            rec.summary,
-            "",
-            "Fix approach:",
-            rec.fix_approach,
-            "",
-        ]
-
-        if rec.affected_areas:
-            lines.append("Affected areas: " + ", ".join(rec.affected_areas))
-            lines.append("")
-        if rec.likely_files:
-            lines.append("Likely files:")
-            for f in rec.likely_files:
-                lines.append(f"  - {f}")
-            lines.append("")
-        if rec.key_guidelines:
-            lines.append("Key guidelines: " + "; ".join(rec.key_guidelines))
-            lines.append("")
-        if rec.test_plan:
-            lines.append("Test plan:")
-            lines.append(rec.test_plan)
-            lines.append("")
-
-        if fix_meta:
-            fix_meta_d = dict(fix_meta)
-            if fix_meta_d.get("skip_reason"):
-                lines.append("---")
-                lines.append("AI code generation was NOT performed. Reason:")
-                lines.append(fix_meta_d["skip_reason"])
-                lines.append("")
-            elif fix_meta_d.get("pr_url"):
-                lines.append("---")
-                lines.append(f"Draft PR: {fix_meta_d['pr_url']}")
-                lines.append("")
-
-        lines.append(f"Suggested branch: {rec.suggested_branch_name}")
-
-        comment_text = "\n".join(lines)
+        if not comment.strip():
+            raise ValueError("Comment cannot be empty.")
 
         from .qa_review import post_jira_comment
-        post_jira_comment(JIRA_URL, cfg["jira_email"], cfg["jira_api_token"], issue["jira_key"], comment_text)
+        post_jira_comment(JIRA_URL, cfg["jira_email"], cfg["jira_api_token"], issue["jira_key"], comment)
 
     except Exception as e:
-        return RedirectResponse(f"/issues/{issue_internal_id}?error={quote(str(e))}", status_code=303)
+        return RedirectResponse(f"/issues/{issue_internal_id}/post-to-jira?error={quote(str(e))}", status_code=303)
     return RedirectResponse(f"/issues/{issue_internal_id}?posted=1", status_code=303)
 
 

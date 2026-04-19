@@ -105,10 +105,7 @@
         <button type="submit" class="btn-secondary">↻ Regenerate</button>
       </form>
       {% if has_jira_auth %}
-      <form action="/issues/{{ issue.id }}/post-to-jira" method="post" class="inline-form"
-            onsubmit="return confirm('Post this recommendation as a comment on {{ issue.jira_key }}?')">
-        <button type="submit" class="btn-secondary">Post to JIRA</button>
-      </form>
+      <a href="/issues/{{ issue.id }}/post-to-jira" class="btn-secondary" style="text-decoration:none">Preview + Post to JIRA</a>
       {% else %}
       <span class="muted" style="font-size:0.82rem">Configure JIRA in Settings to post comments.</span>
       {% endif %}
@@ -145,10 +142,7 @@
       <button type="submit" class="btn-secondary">↻ Try again</button>
     </form>
     {% if has_jira_auth %}
-    <form action="/issues/{{ issue.id }}/post-to-jira" method="post" class="inline-form"
-          onsubmit="return confirm('Post the recommendation and skip reason as a comment on {{ issue.jira_key }}?')">
-      <button type="submit" class="btn-primary">Post recommendation + reason to JIRA</button>
-    </form>
+    <a href="/issues/{{ issue.id }}/post-to-jira" class="btn-primary" style="text-decoration:none">Preview + Post to JIRA</a>
     {% endif %}
   </div>
   {% elif code_fixes %}
