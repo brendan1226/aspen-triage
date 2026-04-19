@@ -39,5 +39,87 @@
       · <a href="https://aspen-discovery.atlassian.net/browse/DIS">Aspen JIRA</a>
     </p>
   </footer>
+
+  {# ── AI loading overlay ── #}
+  <div id="ai-overlay" class="ai-overlay" aria-hidden="true">
+    <div class="ai-overlay-card">
+      <div class="ai-spinner">
+        <div class="ai-spinner-ring"></div>
+        <div class="ai-spinner-ring"></div>
+        <div class="ai-spinner-ring"></div>
+      </div>
+      <h3 id="ai-overlay-title">Claude is thinking...</h3>
+      <p id="ai-overlay-msg" class="muted">This can take 30–90 seconds. Feel free to stretch.</p>
+      <div class="ai-tips">
+        <span id="ai-tip"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    const AI_ENDPOINTS = [
+      { match: /\/recommend$/, title: 'Generating recommendation…', msg: 'Claude is reading the issue, comments, and Aspen coding guidelines.' },
+      { match: /\/generate-fix$/, title: 'Generating code fix…', msg: 'Claude is fetching the relevant files and writing the fix. This can take 30–90 seconds.' },
+      { match: /\/create-pr$/, title: 'Creating draft PR…', msg: 'Forking, branching, committing, and opening a Draft PR on GitHub.' },
+      { match: /\/qa-review$/, title: 'Running AI QA review…', msg: 'Claude is reviewing the code against Aspen security and QA guidelines.' },
+      { match: /\/rebase-patch$/, title: 'Rebasing patch…', msg: 'Fetching the original patch and rebasing against current code.' },
+    ];
+
+    const TIPS = [
+      'Tip: The AI recommendation uses Aspen\'s QA and security guidelines to steer the fix.',
+      'Tip: Always review the generated diff before creating a PR.',
+      'Tip: Enter a DIS-XXXX number in the search bar to jump straight to an issue.',
+      'Tip: Draft PRs let you iterate before requesting review.',
+      'Fun fact: Semantic search finds issues by meaning, not keywords.',
+    ];
+
+    const overlay = document.getElementById('ai-overlay');
+    const titleEl = document.getElementById('ai-overlay-title');
+    const msgEl = document.getElementById('ai-overlay-msg');
+    const tipEl = document.getElementById('ai-tip');
+    let tipTimer = null;
+
+    function rotateTips() {
+      let i = Math.floor(Math.random() * TIPS.length);
+      tipEl.textContent = TIPS[i];
+      tipTimer = setInterval(() => {
+        i = (i + 1) % TIPS.length;
+        tipEl.style.opacity = '0';
+        setTimeout(() => {
+          tipEl.textContent = TIPS[i];
+          tipEl.style.opacity = '1';
+        }, 300);
+      }, 6000);
+    }
+
+    function showOverlay(title, msg) {
+      titleEl.textContent = title;
+      msgEl.textContent = msg;
+      overlay.classList.add('visible');
+      rotateTips();
+    }
+
+    document.addEventListener('submit', function(e) {
+      const form = e.target;
+      if (!form || !form.action) return;
+      for (const ep of AI_ENDPOINTS) {
+        if (ep.match.test(form.action)) {
+          showOverlay(ep.title, ep.msg);
+          // Disable submit buttons to prevent double-click
+          form.querySelectorAll('button[type="submit"]').forEach(b => b.disabled = true);
+          break;
+        }
+      }
+    });
+
+    // Clear if user navigates back via browser history
+    window.addEventListener('pageshow', function() {
+      overlay.classList.remove('visible');
+      if (tipTimer) { clearInterval(tipTimer); tipTimer = null; }
+      document.querySelectorAll('button[type="submit"]').forEach(b => b.disabled = false);
+    });
+  })();
+  </script>
 </body>
 </html>
