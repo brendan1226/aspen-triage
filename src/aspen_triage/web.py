@@ -508,15 +508,20 @@ def generate_issue_recommendation(issue_internal_id: int) -> RedirectResponse:
 
 @app.post("/issues/{issue_internal_id}/generate-fix")
 def generate_fix(request: Request, issue_internal_id: int) -> RedirectResponse:
+    import traceback
     try:
         cfg = _get_user_config(request)
         if not cfg["github_token"]:
             raise ValueError("No GitHub token configured.")
         if not settings.anthropic_api_key:
             raise ValueError("No Anthropic API key configured.")
+        print(f"[generate-fix] issue={issue_internal_id} starting...", flush=True)
         from .codegen import generate_code_fix
         generate_code_fix(settings.db_path, issue_internal_id, settings.anthropic_api_key, cfg["github_token"], settings.classification_model)
+        print(f"[generate-fix] issue={issue_internal_id} completed", flush=True)
     except Exception as e:
+        print(f"[generate-fix] issue={issue_internal_id} ERROR: {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc()
         return RedirectResponse(f"/issues/{issue_internal_id}?error={quote(str(e))}", status_code=303)
     return RedirectResponse(f"/issues/{issue_internal_id}", status_code=303)
 
