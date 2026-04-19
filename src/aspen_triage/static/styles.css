@@ -1019,6 +1019,18 @@ footer a:hover { text-decoration: underline; }
 }
 .btn-secondary:hover { background: var(--accent); color: var(--bg); }
 
+/* No-fix notice */
+.no-fix-notice {
+  background: var(--surface);
+  border: 1px solid #4c3b1f;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-top: 0.5rem;
+}
+.no-fix-notice strong { color: #e4c4a1; }
+.no-fix-notice p { margin: 0.5rem 0; line-height: 1.5; font-size: 0.92rem; }
+.no-fix-notice form { margin-top: 0.75rem; }
+
 /* Code fix section */
 .code-section { margin-top: 2rem; }
 .code-section h3 { color: var(--accent); }
